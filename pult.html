@@ -71,26 +71,39 @@ const nextSlide=()=>{const si=ptr>=T.length?SLIDES.length:T[ptr].slide;setPtr(sl
 setInterval(()=>{if(started&&Link.ok)Link.send({q:Date.now(),p:ptr,cap})},8000); // heartbeat: the board shows "Pult ulangan"
 
 /* ---------- speech recognition (Chrome sends audio to Google; the phone does no heavy work) ---------- */
-let rec=null,voiceOn=true,lastMatch=0,heardCount=0;
-function sim(a,b){if(!a||!b)return false;if(a===b)return true;if(a.length>=4&&b.length>=4&&(a.startsWith(b.slice(0,5))||b.startsWith(a.slice(0,5))))return true;
+let rec=null,voiceOn=true,lastMatch=0,unmatched=0,prevWord='',consumed={};
+function sim(a,b){if(!a||!b)return false;if(a===b)return true;if(a.length>=5&&b.length>=5&&(a.startsWith(b.slice(0,5))||b.startsWith(a.slice(0,5))))return true;
  if(Math.abs(a.length-b.length)>2||a.length<4)return false;const m=[...Array(b.length+1).keys()];for(let i=1;i<=a.length;i++){let p=m[0];m[0]=i;for(let j=1;j<=b.length;j++){const t=m[j];m[j]=Math.min(m[j]+1,m[j-1]+1,p+(a[i-1]===b[j-1]?0:1));p=t}}return m[b.length]<=(a.length>=7?2:1)}
 const tokMatch=(j,w)=>j>=0&&j<T.length&&T[j].n.some(n=>sim(n,w));
-function matchHeard(words){words=words.map(w=>norm(lat(w.toLowerCase()))).filter(Boolean).slice(-5);
- for(let k=words.length-1;k>=0;k--){const w=words[k];for(let j=ptr;j<Math.min(T.length,ptr+12);j++){if(!tokMatch(j,w))continue;
-   const near=j-ptr<=3,ctx=k>0&&(tokMatch(j-1,words[k-1])||tokMatch(j-2,words[k-1]));
-   if(near||ctx||w.length>=7){lastMatch=Date.now();setPtr(j+1);return true}}}return false}
+// small, very common words: they may only confirm the very next word, never cause a jump
+const STOP=new Set(['va','bu','men','u','bilan','uchun','ham','shu','bir','bitta','emas','keyin','lekin','hozir','mening','sizga','biz','esa','oddiy','edi','deb','eng','har','qiladi','the','we','you']);
+// how far ahead recognition may look: the rest of this sentence + the next one, never past the slide
+// unless the slide's last sentence is already mostly said (then only the first words of the next slide)
+function searchLimit(){const s=sentOf(ptr),sl=T[Math.min(ptr,T.length-1)].slide,slEnd=slideStart[sl+1];
+ let lim=sentStart[Math.min(s+2,sentStart.length-1)];
+ if(lim>slEnd){const a=sentStart[sentOf(slEnd-1)],prog=(ptr-a)/Math.max(1,slEnd-a);lim=ptr>=a&&prog>=.6?Math.min(lim,slEnd+4):slEnd}
+ return Math.min(lim,T.length)}
+// feed each heard word exactly once, in order
+function hear(words){for(const w of words){if(!w)continue;const lim=searchLimit();let hit=-1;
+  for(let j=ptr;j<lim;j++){if(!tokMatch(j,w))continue;const d=j-ptr;
+   if(STOP.has(w)||w.length<3){if(d===0)hit=j;break}
+   if(d<=3||(d<=8&&prevWord&&tokMatch(j-1,prevWord))){hit=j;break}}   // longer jumps need two words in a row
+  prevWord=w;
+  if(hit>=0){lastMatch=Date.now();unmatched=0;setPtr(hit+1)}else unmatched++;
+  // nothing recognised for a while (English quote, noise): creep forward slowly, inside the current slide only
+  if(unmatched>=3&&Date.now()-lastMatch>3500&&ptr<T.length){const slEnd=slideStart[T[ptr].slide+1];if(ptr+1<slEnd)setPtr(ptr+1);unmatched=0}}}
 function micState(on,t){$('mic').classList.toggle('on',on);$('micT').textContent=t}
 function startRec(){const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
  if(!SR){voiceOn=false;$('mode').textContent='Ovoz: yo\'q';micState(false,'Ovoz tanish yo\'q');return}
  rec=new SR();rec.lang='uz-UZ';rec.continuous=true;rec.interimResults=true;
- rec.onstart=()=>{heardCount=0;micState(true,'Eshityapman')};
- rec.onresult=e=>{if(!voiceOn)return;const words=[...e.results].map(r=>r[0].transcript).join(' ').split(/\s+/).filter(Boolean);
-  $('heard').textContent='Eshitildi: '+words.slice(-8).join(' ');
-  const latest=[...e.results].slice(e.resultIndex).map(r=>r[0].transcript).join(' ').split(/\s+/).filter(Boolean);
-  const matched=matchHeard(latest);
-  // words heard but not matched (English quote, recogniser mistakes): keep moving at the speaker's pace, within the sentence
-  const delta=words.length-heardCount;heardCount=Math.max(heardCount,words.length);
-  if(!matched&&delta>0&&Date.now()-lastMatch>2500&&ptr<T.length){setPtr(Math.min(sentStart[sentOf(ptr)+1],ptr+delta))}};
+ rec.onstart=()=>{consumed={};micState(true,'Eshityapman')};
+ rec.onresult=e=>{if(!voiceOn)return;const fresh=[];
+  for(let i=e.resultIndex;i<e.results.length;i++){const r=e.results[i],ws=r[0].transcript.split(/\s+/).filter(Boolean);
+   // interim results repeat and revise the same words many times a second: take only words not used yet,
+   // and hold back the last interim word (it may still be half-heard)
+   const upto=r.isFinal?ws.length:ws.length-1,c=consumed[i]||0;if(upto>c){fresh.push(...ws.slice(c,upto));consumed[i]=upto}}
+  $('heard').textContent='Eshitildi: '+[...e.results].slice(-2).map(r=>r[0].transcript).join(' ').split(/\s+/).slice(-8).join(' ');
+  hear(fresh.map(w=>norm(lat(w.toLowerCase()))))};
  rec.onerror=e=>{if(['not-allowed','service-not-allowed','audio-capture'].includes(e.error)){voiceOn=false;$('mode').textContent='Ovoz: o\'chiq';micState(false,'Mikrofon ruxsati yo\'q')}
   else if(e.error==='network')micState(false,'Internet yo\'q');else if(e.error==='language-not-supported')rec.lang='uz'};
  rec.onend=()=>{if(voiceOn)setTimeout(()=>{try{rec.start()}catch(_){}},120);else micState(false,'Ovoz o\'chiq')};
@@ -104,7 +117,7 @@ Link.start(null,linkState);
 /* ---------- buttons ---------- */
 async function keepAwake(){try{await navigator.wakeLock.request('screen')}catch(e){}}
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&started)keepAwake()});
-function begin(){started=true;$('start').style.display='none';render();push();keepAwake();startRec()}
+function begin(){started=true;lastMatch=Date.now();$('start').style.display='none';render();push();keepAwake();startRec()}
 $('go').onclick=begin;
 $('reset0').onclick=()=>{ptr=0;try{localStorage.setItem('tq_ptr',0)}catch(e){}begin()};
 $('next').onclick=nextSentence;$('prev').onclick=prevSentence;$('nextS').onclick=nextSlide;
