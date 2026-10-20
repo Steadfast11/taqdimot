@@ -71,7 +71,7 @@ const nextSlide=()=>{const si=ptr>=T.length?SLIDES.length:T[ptr].slide;setPtr(sl
 setInterval(()=>{if(started&&Link.ok)Link.send({q:Date.now(),p:ptr,cap})},8000); // heartbeat: the board shows "Pult ulangan"
 
 /* ---------- speech recognition (Chrome sends audio to Google; the phone does no heavy work) ---------- */
-let rec=null,voiceOn=true,lastMatch=0,unmatched=0,prevWord='',consumed={};
+let rec=null,voiceOn=true,lastMatch=0,lastHeard=0,consumed={},stream=[];
 function sim(a,b){if(!a||!b)return false;if(a===b)return true;if(a.length>=5&&b.length>=5&&(a.startsWith(b.slice(0,5))||b.startsWith(a.slice(0,5))))return true;
  if(Math.abs(a.length-b.length)>2||a.length<4)return false;const m=[...Array(b.length+1).keys()];for(let i=1;i<=a.length;i++){let p=m[0];m[0]=i;for(let j=1;j<=b.length;j++){const t=m[j];m[j]=Math.min(m[j]+1,m[j-1]+1,p+(a[i-1]===b[j-1]?0:1));p=t}}return m[b.length]<=(a.length>=7?2:1)}
 const tokMatch=(j,w)=>j>=0&&j<T.length&&T[j].n.some(n=>sim(n,w));
@@ -83,27 +83,44 @@ function searchLimit(){const s=sentOf(ptr),sl=T[Math.min(ptr,T.length-1)].slide,
  let lim=sentStart[Math.min(s+2,sentStart.length-1)];
  if(lim>slEnd){const a=sentStart[sentOf(slEnd-1)],prog=(ptr-a)/Math.max(1,slEnd-a);lim=ptr>=a&&prog>=.6?Math.min(lim,slEnd+4):slEnd}
  return Math.min(lim,T.length)}
-// feed each heard word exactly once, in order
-function hear(words){for(const w of words){if(!w)continue;const lim=searchLimit();let hit=-1;
-  for(let j=ptr;j<lim;j++){if(!tokMatch(j,w))continue;const d=j-ptr;
-   if(STOP.has(w)||w.length<3){if(d===0)hit=j;break}
-   if(d<=3||(d<=8&&prevWord&&tokMatch(j-1,prevWord))){hit=j;break}}   // longer jumps need two words in a row
-  prevWord=w;
-  if(hit>=0){lastMatch=Date.now();unmatched=0;setPtr(hit+1)}else unmatched++;
-  // nothing recognised for a while (English quote, noise): creep forward slowly, inside the current slide only
-  if(unmatched>=3&&Date.now()-lastMatch>3500&&ptr<T.length){const slEnd=slideStart[T[ptr].slide+1];if(ptr+1<slEnd)setPtr(ptr+1);unmatched=0}}}
+const content=w=>w&&w.length>=3&&!STOP.has(w);
+// Android re-sends words it already gave us: drop the part of `ws` that repeats the end of what we heard
+function dedupe(ws){const tail=stream.slice(-14);let best=0;
+ for(let k=Math.min(ws.length,tail.length);k>0;k--){let ok=true;for(let i=0;i<k;i++)if(ws[i]!==tail[tail.length-k+i]){ok=false;break}if(ok){best=k;break}}
+ return ws.slice(best)}
+// How well do the last heard words line up with the script so that the newest word is token e?
+// Walks backwards through both, allowing one skipped word on either side (recogniser slips).
+function score(e,recent){let s=content(recent[recent.length-1])?1:.5,j=e-1,k=recent.length-2,miss=0;
+ while(k>=0&&j>=0&&j>=e-10&&miss<3){const w=recent[k];
+  if(tokMatch(j,w)){s+=content(w)?1:.5;j--;k--;miss=0}
+  else if(tokMatch(j-1,w)){s+=content(w)?.8:.4;j-=2;k--;miss++}
+  else{k--;miss++}}
+ return s}
+// The pointer only moves when a run of heard words matches the script in order —
+// a single stray word (from another slide, or a repeated word) can never move it.
+function step(){const recent=stream.slice(-6),last=recent[recent.length-1];if(!last)return;
+ const lim=searchLimit();let best=-1,bestS=0;
+ for(let e=ptr;e<lim;e++){if(!tokMatch(e,last))continue;const s=score(e,recent),d=e-ptr;
+  const need=d===0?(content(last)?1:1.5):d<=2?2:3;          // the further ahead, the more evidence
+  if(s>=need&&s>bestS+.01){best=e;bestS=s}}
+ if(best>=0){lastMatch=Date.now();setPtr(best+1)}}
+function hear(words){for(const w of words){if(!w)continue;stream.push(w);if(stream.length>60)stream.splice(0,30);lastHeard=Date.now();step()}}
+// English quote / unrecognised speech: while he keeps talking with no match, move one word every 1.2 s,
+// never past the end of the current sentence
+setInterval(()=>{if(!started||!voiceOn||ptr>=T.length)return;const now=Date.now();
+ if(now-lastMatch>5000&&now-lastHeard<1500&&ptr+1<sentStart[sentOf(ptr)+1])setPtr(ptr+1)},1200);
 function micState(on,t){$('mic').classList.toggle('on',on);$('micT').textContent=t}
 function startRec(){const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
  if(!SR){voiceOn=false;$('mode').textContent='Ovoz: yo\'q';micState(false,'Ovoz tanish yo\'q');return}
  rec=new SR();rec.lang='uz-UZ';rec.continuous=true;rec.interimResults=true;
  rec.onstart=()=>{consumed={};micState(true,'Eshityapman')};
- rec.onresult=e=>{if(!voiceOn)return;const fresh=[];
-  for(let i=e.resultIndex;i<e.results.length;i++){const r=e.results[i],ws=r[0].transcript.split(/\s+/).filter(Boolean);
+ rec.onresult=e=>{if(!voiceOn)return;
+  for(let i=e.resultIndex;i<e.results.length;i++){const r=e.results[i],ws=r[0].transcript.split(/\s+/).map(w=>norm(lat(w.toLowerCase()))).filter(Boolean);
    // interim results repeat and revise the same words many times a second: take only words not used yet,
    // and hold back the last interim word (it may still be half-heard)
-   const upto=r.isFinal?ws.length:ws.length-1,c=consumed[i]||0;if(upto>c){fresh.push(...ws.slice(c,upto));consumed[i]=upto}}
-  $('heard').textContent='Eshitildi: '+[...e.results].slice(-2).map(r=>r[0].transcript).join(' ').split(/\s+/).slice(-8).join(' ');
-  hear(fresh.map(w=>norm(lat(w.toLowerCase()))))};
+   if(consumed[i]===undefined)consumed[i]=ws.length-dedupe(ws).length;   // a new result may start by repeating old words
+   const upto=r.isFinal?ws.length:ws.length-1,c=consumed[i];if(upto>c){hear(ws.slice(c,upto));consumed[i]=upto}}
+  $('heard').textContent='Eshitildi: '+[...e.results].slice(-2).map(r=>r[0].transcript).join(' ').split(/\s+/).slice(-8).join(' ')};
  rec.onerror=e=>{if(['not-allowed','service-not-allowed','audio-capture'].includes(e.error)){voiceOn=false;$('mode').textContent='Ovoz: o\'chiq';micState(false,'Mikrofon ruxsati yo\'q')}
   else if(e.error==='network')micState(false,'Internet yo\'q');else if(e.error==='language-not-supported')rec.lang='uz'};
  rec.onend=()=>{if(voiceOn)setTimeout(()=>{try{rec.start()}catch(_){}},120);else micState(false,'Ovoz o\'chiq')};
