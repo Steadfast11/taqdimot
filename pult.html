@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="uz"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#0B1020">
+<title>Pult — Xasan taqdimoti</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:#0B1020;color:#EDE6D6;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;overflow:hidden}
+.top{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;gap:8px;font-size:13px}
+.pill{border:1px solid rgba(237,230,214,.3);border-radius:999px;padding:6px 11px;white-space:nowrap}
+.pill i{display:inline-block;width:8px;height:8px;border-radius:50%;background:#666;margin-right:6px}
+.pill.on i{background:#F6C453}
+#title{font-weight:700;font-size:15px;padding:0 16px 6px;color:#F6C453}
+#tp{position:absolute;top:84px;bottom:150px;left:0;right:0;overflow-y:auto;padding:6px 18px 40vh;font-size:27px;line-height:1.45;scroll-behavior:smooth}
+#tp span{transition:color .15s,opacity .15s}
+#tp .sp{opacity:.4}
+#tp .cur{color:#0B1020;background:#F6C453;border-radius:4px;padding:0 3px}
+#tp .mk{text-decoration:underline;text-decoration-color:rgba(246,196,83,.6);text-underline-offset:4px}
+#tp .brk{display:block;height:12px}
+.btns{position:absolute;left:0;right:0;bottom:0;padding:10px 12px 16px;background:#0B1020;border-top:1px solid rgba(237,230,214,.15);display:grid;grid-template-columns:1fr 2.2fr 1fr;gap:8px}
+button{font:inherit;border:0;border-radius:14px;background:#1B2340;color:#EDE6D6;font-size:16px;padding:14px 6px}
+button.main{background:#F6C453;color:#0B1020;font-weight:700;font-size:22px}
+.btns .small{grid-column:span 3;display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.btns .small button{font-size:13px;padding:10px 4px}
+button.on{background:#F6C453;color:#0B1020}
+#start{position:fixed;inset:0;background:#0B1020;display:flex;flex-direction:column;justify-content:center;padding:28px;gap:14px;z-index:9}
+#start h1{font-size:30px;line-height:1.1}
+#start p{opacity:.8;line-height:1.5}
+#start button{background:#F6C453;color:#0B1020;font-weight:700;font-size:22px;padding:18px}
+#heard{position:absolute;bottom:150px;left:0;right:0;padding:4px 16px;font-size:12px;opacity:.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:#0B1020}
+</style></head><body>
+<div id="start">
+ <h1>Taqdimot pulti</h1>
+ <p>Telefonni qo'lingizda ushlang va gapiravering. Telefon ovozingizni eshitadi, doskadagi taqdimot o'zi yuradi. Butun nutqingiz shu ekranda bo'ladi: sariq so'z turgan joyingizni ko'rsatadi.</p>
+ <p style="font-size:14px">Ovoz tanish ishlamasa, pastdagi katta <b>Keyingi ▶</b> tugmasini bosasiz.</p>
+ <div class="pill" id="st0"><i></i><span>Doska bilan aloqa tekshirilmoqda…</span></div>
+ <button id="go">Boshlash</button>
+ <button id="reset0" style="background:#1B2340;color:#EDE6D6;font-weight:400;font-size:15px;padding:12px">Boshidan boshlash</button>
+</div>
+
+<div class="top"><span class="pill" id="net"><i></i><span id="netT">Doska</span></span><span class="pill" id="mic"><i></i><span id="micT">Mikrofon</span></span><span class="pill" id="num">1/11</span></div>
+<div id="title"></div>
+<div id="tp"></div>
+<div id="heard"></div>
+<div class="btns">
+ <button id="prev">◀</button><button class="main" id="next">Keyingi ▶</button><button id="nextS">Slayd ⏭</button>
+ <div class="small"><button id="mode">Ovoz: yoqiq</button><button id="cap">Doskada matn</button><button id="map">Xarita</button><button id="reset">Boshidan</button></div>
+</div>
+
+<script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
+<script src="speech.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+let ptr=0,cap=0,shownSlide=-1,started=false;
+try{ptr=Math.max(0,Math.min(T.length,+(localStorage.getItem('tq_ptr')||0)||0))}catch(e){ptr=0}
+
+/* ---------- teleprompter ---------- */
+function buildSlide(si){shownSlide=si;const a=slideStart[si],b=slideStart[si+1];let h='',lastSent=T[a].sent;
+ for(let j=a;j<b;j++){if(T[j].sent!==lastSent){h+='<span class="brk"></span>';lastSent=T[j].sent}h+=`<span id="w${j}" class="${T[j].ids.length?'mk':''}">${T[j].d}</span> `}
+ $('tp').innerHTML=h;$('title').textContent=(si+1)+'. '+SLIDES[si].name;$('num').textContent=(si+1)+'/'+SLIDES.length;$('tp').scrollTop=0}
+function render(){const si=ptr>=T.length?SLIDES.length-1:T[ptr].slide;if(si!==shownSlide)buildSlide(si);
+ for(let j=slideStart[si];j<slideStart[si+1];j++){const e=$('w'+j);e.classList.toggle('sp',j<ptr);e.classList.toggle('cur',j===ptr)}
+ const c=$('w'+Math.min(ptr,T.length-1));if(c){const tp=$('tp'),y=c.offsetTop-tp.clientHeight*.3;if(Math.abs(tp.scrollTop-y)>30)tp.scrollTop=y}}
+
+/* ---------- send to the board ---------- */
+let sendT=null;
+function push(extra){clearTimeout(sendT);sendT=setTimeout(()=>Link.send(Object.assign({q:Date.now(),p:ptr,cap},extra||{})),80)}
+function setPtr(n){n=Math.max(0,Math.min(T.length,n));if(n===ptr)return;ptr=n;try{localStorage.setItem('tq_ptr',ptr)}catch(e){}render();push()}
+const nextSentence=()=>{if(ptr<T.length)setPtr(sentStart[sentOf(ptr)+1])};
+const prevSentence=()=>{const s=sentOf(ptr);setPtr(ptr>sentStart[s]?sentStart[s]:sentStart[Math.max(0,s-1)])};
+const nextSlide=()=>{const si=ptr>=T.length?SLIDES.length:T[ptr].slide;setPtr(slideStart[Math.min(SLIDES.length,si+1)])};
+setInterval(()=>{if(started&&Link.ok)Link.send({q:Date.now(),p:ptr,cap})},8000); // heartbeat: the board shows "Pult ulangan"
+
+/* ---------- speech recognition (Chrome sends audio to Google; the phone does no heavy work) ---------- */
+let rec=null,voiceOn=true,lastMatch=0,heardCount=0;
+function sim(a,b){if(!a||!b)return false;if(a===b)return true;if(a.length>=4&&b.length>=4&&(a.startsWith(b.slice(0,5))||b.startsWith(a.slice(0,5))))return true;
+ if(Math.abs(a.length-b.length)>2||a.length<4)return false;const m=[...Array(b.length+1).keys()];for(let i=1;i<=a.length;i++){let p=m[0];m[0]=i;for(let j=1;j<=b.length;j++){const t=m[j];m[j]=Math.min(m[j]+1,m[j-1]+1,p+(a[i-1]===b[j-1]?0:1));p=t}}return m[b.length]<=(a.length>=7?2:1)}
+const tokMatch=(j,w)=>j>=0&&j<T.length&&T[j].n.some(n=>sim(n,w));
+function matchHeard(words){words=words.map(w=>norm(lat(w.toLowerCase()))).filter(Boolean).slice(-5);
+ for(let k=words.length-1;k>=0;k--){const w=words[k];for(let j=ptr;j<Math.min(T.length,ptr+12);j++){if(!tokMatch(j,w))continue;
+   const near=j-ptr<=3,ctx=k>0&&(tokMatch(j-1,words[k-1])||tokMatch(j-2,words[k-1]));
+   if(near||ctx||w.length>=7){lastMatch=Date.now();setPtr(j+1);return true}}}return false}
+function micState(on,t){$('mic').classList.toggle('on',on);$('micT').textContent=t}
+function startRec(){const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+ if(!SR){voiceOn=false;$('mode').textContent='Ovoz: yo\'q';micState(false,'Ovoz tanish yo\'q');return}
+ rec=new SR();rec.lang='uz-UZ';rec.continuous=true;rec.interimResults=true;
+ rec.onstart=()=>{heardCount=0;micState(true,'Eshityapman')};
+ rec.onresult=e=>{if(!voiceOn)return;const words=[...e.results].map(r=>r[0].transcript).join(' ').split(/\s+/).filter(Boolean);
+  $('heard').textContent='Eshitildi: '+words.slice(-8).join(' ');
+  const latest=[...e.results].slice(e.resultIndex).map(r=>r[0].transcript).join(' ').split(/\s+/).filter(Boolean);
+  const matched=matchHeard(latest);
+  // words heard but not matched (English quote, recogniser mistakes): keep moving at the speaker's pace, within the sentence
+  const delta=words.length-heardCount;heardCount=Math.max(heardCount,words.length);
+  if(!matched&&delta>0&&Date.now()-lastMatch>2500&&ptr<T.length){setPtr(Math.min(sentStart[sentOf(ptr)+1],ptr+delta))}};
+ rec.onerror=e=>{if(['not-allowed','service-not-allowed','audio-capture'].includes(e.error)){voiceOn=false;$('mode').textContent='Ovoz: o\'chiq';micState(false,'Mikrofon ruxsati yo\'q')}
+  else if(e.error==='network')micState(false,'Internet yo\'q');else if(e.error==='language-not-supported')rec.lang='uz'};
+ rec.onend=()=>{if(voiceOn)setTimeout(()=>{try{rec.start()}catch(_){}},120);else micState(false,'Ovoz o\'chiq')};
+ try{rec.start()}catch(e){}}
+
+/* ---------- link state ---------- */
+function linkState(ok){$('net').classList.toggle('on',ok);$('netT').textContent=ok?'Doska: ulandi':'Doska: ulanmoqda…';
+ const s=$('st0');s.classList.toggle('on',ok);s.lastChild.textContent=ok?'Doska bilan aloqa bor':'Doska bilan aloqa yo\'q (internetni tekshiring)'}
+Link.start(null,linkState);
+
+/* ---------- buttons ---------- */
+async function keepAwake(){try{await navigator.wakeLock.request('screen')}catch(e){}}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&started)keepAwake()});
+function begin(){started=true;$('start').style.display='none';render();push();keepAwake();startRec()}
+$('go').onclick=begin;
+$('reset0').onclick=()=>{ptr=0;try{localStorage.setItem('tq_ptr',0)}catch(e){}begin()};
+$('next').onclick=nextSentence;$('prev').onclick=prevSentence;$('nextS').onclick=nextSlide;
+$('mode').onclick=()=>{voiceOn=!voiceOn;$('mode').textContent='Ovoz: '+(voiceOn?'yoqiq':'o\'chiq');$('mode').classList.toggle('on',!voiceOn);
+ if(voiceOn){if(!rec)startRec();else try{rec.start()}catch(e){}}else{try{rec&&rec.stop()}catch(e){}}};
+$('cap').onclick=()=>{cap=cap?0:1;$('cap').classList.toggle('on',!!cap);push()};
+$('map').onclick=()=>Link.send({q:Date.now(),p:ptr,cap,map:1});
+$('reset').onclick=()=>{if(confirm('Taqdimotni boshidan boshlaymi?')){setPtr(0);render();push()}};
+render();
+</script>
+</body></html>

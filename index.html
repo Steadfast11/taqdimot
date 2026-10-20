@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="uz"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Xasan Abdukhafizov — 15 yoshda real tizimlar qurish</title>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@800;900&family=Cormorant+Garamond:ital,wght@1,500;1,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#F2DCCB;--ink:#2B1E1A;--acc:#D9563A;--card:rgba(242,220,203,.92);--soft:rgba(43,30,26,.17)}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font-family:Inter,"Segoe UI","Helvetica Neue",Arial,sans-serif;cursor:default}
+.mono{font-family:'JetBrains Mono',Consolas,Menlo,monospace;font-size:13px;letter-spacing:.08em;text-transform:uppercase}
+.big{font-family:Archivo,"Arial Black","Segoe UI Black","Avenir Next",sans-serif;font-weight:900;letter-spacing:-.045em;line-height:.9}
+.it{font-family:'Cormorant Garamond',Georgia,"Times New Roman",serif;font-style:italic;font-weight:500;letter-spacing:-.01em;color:var(--acc)}
+#tiles{position:fixed;inset:0;width:100%;height:100%;z-index:0}
+#stage{position:fixed;inset:0;overflow:hidden;z-index:2}
+#world{position:absolute;left:0;top:0;width:400vw;height:300vh;transform-origin:0 0;will-change:transform}
+.panel{position:absolute;width:100vw;height:100vh;display:flex;align-items:center;justify-content:center;padding:76px 5vw 6vh}
+body.cap .panel{padding-bottom:20vh}
+.card{background:var(--card);border:1px solid var(--soft);width:100%;max-width:1360px;padding:38px 46px;position:relative;
+ clip-path:polygon(0 34px,34px 0,calc(100% - 34px) 0,100% 34px,100% calc(100% - 34px),calc(100% - 34px) 100%,34px 100%,0 calc(100% - 34px))}
+.clear{background:transparent;border:0;clip-path:none}
+.lab{color:var(--acc);margin-bottom:14px;display:block}
+.f{transition:transform .55s cubic-bezier(.2,.8,.2,1),background .4s,color .4s,border-color .4s,opacity .5s}
+.f.on{transform:scale(1.07)}
+.box{border:2px solid var(--soft);background:var(--bg);padding:16px 20px}
+.box.f.lit{border-color:var(--acc)}
+.box.f.on{background:var(--acc);color:var(--bg);border-color:var(--acc)}
+.box.f.on .sub{color:var(--bg);opacity:.9}
+.txt.f.on{color:var(--acc)}
+.reveal{opacity:0;transform:translateY(14px)}
+.reveal.lit{opacity:1;transform:none}
+.reveal.on{transform:scale(1.06)}
+.sub{font-size:16px;opacity:.72;margin-top:6px;line-height:1.35}
+.h{font-size:23px;font-weight:600}
+.row{display:grid;gap:14px}
+.bar{position:fixed;top:0;left:0;right:0;z-index:60;display:flex;justify-content:space-between;align-items:center;padding:16px 26px}
+.chip{border:1px solid var(--ink);border-radius:999px;padding:7px 14px;background:var(--card)}
+#link .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--soft);margin-right:8px;vertical-align:1px}
+#link.on .dot{background:var(--acc)}
+#cap{position:fixed;left:0;right:0;bottom:0;z-index:55;background:var(--card);border-top:1px solid var(--soft);padding:16px 5vw 20px;display:none}
+body.cap #cap{display:block}
+#capNow{font-size:clamp(22px,2.2vw,38px);line-height:1.32;font-weight:500}
+#capNow .up{opacity:.36}#capNow .cur{color:var(--acc);text-decoration:underline;text-underline-offset:6px;text-decoration-thickness:3px}
+#astra{position:fixed;z-index:70;left:60vw;top:40vh;transition:left .9s cubic-bezier(.6,0,.2,1),top .9s cubic-bezier(.6,0,.2,1),opacity .4s;pointer-events:none;opacity:0}
+#astra .tag{position:absolute;left:26px;top:28px;background:var(--acc);color:#fff;padding:3px 7px;white-space:nowrap;font-size:11px}
+.trio{display:flex;align-items:center;margin-top:44px}
+.node{width:160px;height:160px;border-radius:50%;border:2px solid var(--soft);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:var(--bg);flex:none}
+.node svg{width:58px;height:58px}
+.node.f.lit{border-color:var(--acc)}.node.f.on{background:var(--acc);color:var(--bg)}
+.wire{flex:1;height:0;border-top:3px dashed var(--soft);margin:0 10px;transition:border-color .5s}
+.wire.lit{border-color:var(--acc)}
+.arrow{font-family:Archivo,"Arial Black",sans-serif;font-weight:900;font-size:34px;color:var(--soft);transition:color .4s;align-self:center;text-align:center}
+.arrow.lit{color:var(--acc)}
+.hex{font-family:'JetBrains Mono',Consolas,monospace;font-size:15px;line-height:1.7;background:#111;color:#E9E2D2;padding:16px;height:220px;overflow:hidden}
+.hex b{color:var(--acc);font-weight:500}
+.step .barx{height:6px;background:var(--soft);margin-top:12px;overflow:hidden}
+.step .barx i{display:block;height:100%;width:0;background:currentColor;transition:width 1.2s ease}
+.step.lit .barx i{width:100%}
+.term{font-family:'JetBrains Mono',Consolas,monospace;background:#111;color:#E9E2D2;padding:16px 18px;font-size:18px}
+.plan{list-style:none}
+.plan li{display:grid;grid-template-columns:50px 1fr;align-items:baseline;padding:11px 0;border-top:1px solid var(--soft)}
+.plan li .n{font-family:Archivo,"Arial Black",sans-serif;font-weight:900;font-size:28px;color:var(--acc)}
+.plan li span:last-child{font-size:21px}
+.pj .nm{font-family:Archivo,"Arial Black",sans-serif;font-weight:900;font-size:28px;letter-spacing:-.03em}
+</style></head><body>
+<canvas id="tiles"></canvas>
+<div class="bar">
+ <span class="big" style="font-size:22px">XASAN<span class="it" style="font-size:26px">.</span></span>
+ <span class="mono chip" id="slideNo">01 / 11 · Ochilish</span>
+ <span class="mono chip" id="link"><span class="dot"></span><span id="linkT">Pult kutilmoqda</span></span>
+</div>
+<div id="astra"><svg width="28" height="28" viewBox="0 0 22 22"><path d="M2 2 L2 18 L7 13 L11 21 L14 20 L10 12 L17 12 Z" fill="var(--acc)" stroke="#fff" stroke-width="1.5"/></svg><span class="tag mono">Astra</span></div>
+<div id="cap"><div id="capNow"></div></div>
+
+<div id="stage"><div id="world">
+
+ <!-- 01 Ochilish (1,1) -->
+ <section class="panel" style="left:100vw;top:100vh"><div class="card clear">
+  <span class="mono lab">05:40 — Samarqand · Xasan Abdukhafizov</span>
+  <h1 class="big txt f" id="s1q" style="font-size:clamp(52px,7vw,130px)">Soat, telefon va eski kompyuter<br><span class="it">gaplasha oladimi?</span></h1>
+  <div class="trio">
+   <div class="node f" id="n-watch"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="14" y="12" width="20" height="24" rx="5"/><path d="M18 12V4h12v8M18 36v8h12v-8"/><path d="M24 19v6l4 3"/></svg><span class="mono">Soat</span></div>
+   <div class="wire" data-when="n-phone"></div>
+   <div class="node f" id="n-phone"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="14" y="4" width="20" height="40" rx="4"/><path d="M21 38h6"/></svg><span class="mono">Telefon</span></div>
+   <div class="wire" data-when="n-pc"></div>
+   <div class="node f" id="n-pc"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="5" y="8" width="38" height="26" rx="3"/><path d="M18 42h12M24 34v8"/></svg><span class="mono">Eski kompyuter</span></div>
+  </div>
+ </div></section>
+
+ <!-- 02 Men kimman (1,0) -->
+ <section class="panel" style="left:100vw;top:0"><div class="card">
+  <span class="mono lab">07:00 · Men kimman</span>
+  <div style="display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:40px;align-items:end">
+   <div><h2 class="big" style="font-size:clamp(54px,7vw,130px)">XASAN<br><span class="it" style="font-size:1.02em">Abdukhafizov</span></h2>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:20px">
+     <div class="box f" id="s2eng" style="font-size:20px;font-weight:600">Software Engineer</div>
+     <div class="box f" id="s2role" style="font-size:20px;font-weight:600">Maktab IT va AI sardori</div></div></div>
+   <div><div class="mono" style="opacity:.6">Asosiy yo'nalish</div>
+    <div class="big txt f" id="s2dir" style="font-size:clamp(34px,3.6vw,64px);margin-top:8px">Agentic Systems<br>Architecture</div></div>
+  </div>
+  <div class="row" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-top:28px">
+   <div class="box f" id="s2t1"><div class="h">AI agent tizimlari</div><div class="sub">o'zi ishlaydi, o'zi bajaradi</div></div>
+   <div class="box f" id="s2t2"><div class="h">Algoritmik simulyatsiyalar</div><div class="sub">belgilangan qoidalar asosida o'zi harakat qiladigan va qaror qabul qiladigan virtual agentlar</div></div>
+   <div class="box f" id="s2t3"><div class="h">Qurilmalar integratsiyasi</div><div class="sub">soat · telefon · server — bitta tizim</div></div>
+  </div>
+  <div class="mono txt f" id="s2gh" style="margin-top:18px;font-size:15px">Build in public · github.com/Steadfast11</div>
+ </div></section>
+
+ <!-- 03 Loyihalarim (2,0) -->
+ <section class="panel" style="left:200vw;top:0"><div class="card">
+  <span class="mono lab">08:30 · Loyihalarim</span>
+  <h2 class="big" style="font-size:clamp(46px,5.6vw,104px)">Men qurgan <span class="it">tizimlar.</span></h2>
+  <div class="row" style="grid-template-columns:repeat(4,minmax(0,1fr));margin-top:26px">
+   <div class="box pj f" id="pj1"><div class="nm">Astra</div><div class="sub">shaxsiy AI agent</div></div>
+   <div class="box pj f" id="pj2"><div class="nm">Life-Tracker</div><div class="sub">kunni o'zi o'lchaydigan tizim</div></div>
+   <div class="box pj f" id="pj3"><div class="nm">Orvell</div><div class="sub">soat uchun Android ilova</div></div>
+   <div class="box pj f" id="pj4"><div class="nm">Astra-video</div><div class="sub">o'zi video yasaydi</div></div>
+   <div class="box pj f" id="pj5"><div class="nm">Jarvis</div><div class="sub">har tongda yangiliklar yuboradigan bot</div></div>
+   <div class="box pj f" id="pj6"><div class="nm">Kodla</div><div class="sub">dasturlashni o'rgatadigan ilova</div></div>
+   <div class="box pj f" id="pj7"><div class="nm">Simulyatsiyalar</div><div class="sub">algoritmik virtual agentlar</div></div>
+   <div class="box pj" style="border-style:dashed"><div class="nm" style="font-size:20px">github.com/<br>Steadfast11</div><div class="sub">hammasi ochiq</div></div>
+  </div>
+ </div></section>
+
+ <!-- 04 Life-Tracker (3,0) -->
+ <section class="panel" style="left:300vw;top:0"><div class="card">
+  <span class="mono lab">10:00 · Loyiha 1</span>
+  <h2 class="big txt f" id="l-title" style="font-size:clamp(46px,5.8vw,108px)">Life-Tracker <span class="it">— kun o'zini o'lchaydi</span></h2>
+  <div class="txt f reveal" id="l-q" style="font-size:24px;margin-top:14px;font-weight:500">Qancha uxlayman? Qancha harakat qilaman? Vaqtim qayerga ketadi?</div>
+  <div class="row" style="grid-template-columns:1fr 40px 1fr 40px 1.25fr 40px 1fr;margin-top:28px">
+   <div class="box f" id="l-watch"><div class="h">Soat</div><div class="sub">ma'lumot yig'adi</div></div>
+   <div class="arrow" data-when="l-phone">→</div>
+   <div class="box f" id="l-phone"><div class="h">Telefon</div><div class="sub">qabul qiladi, uzatadi</div></div>
+   <div class="arrow" data-when="l-pc">→</div>
+   <div class="box f" id="l-pc"><div class="h">Eski kompyuter → server</div><div class="sub f" id="l-spec" style="font-family:'JetBrains Mono',Consolas,monospace">i5 protsessor · 8 GB xotira</div></div>
+   <div class="arrow" data-when="l-ai">→</div>
+   <div class="box f" id="l-ai"><div class="h">Sun'iy intellekt</div><div class="sub">o'qiydi va tahlil qiladi</div></div>
+  </div>
+  <div class="big f reveal" id="l-safe" style="font-size:clamp(28px,3vw,54px);margin-top:26px">Ma'lumot <span class="it">faqat menda.</span> Begona kompaniyada emas.</div>
+ </div></section>
+
+ <!-- 05 Orvell (3,1) -->
+ <section class="panel" style="left:300vw;top:100vh"><div class="card">
+  <span class="mono lab">11:30 · Loyiha 2</span>
+  <h2 class="big txt f" id="o-title" style="font-size:clamp(46px,5.8vw,108px)">Orvell <span class="it">— o'z ilovam</span></h2>
+  <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:26px;margin-top:24px">
+   <div class="box f" id="o-proto" style="padding:14px"><div class="mono" style="margin-bottom:10px">Bluetooth protokoli — o'zim tahlil qildim</div><div class="hex" id="hex"></div></div>
+   <div class="row" style="align-content:start">
+    <div class="box f" id="o-kotlin"><div class="h">Kotlin · Jetpack Compose</div><div class="sub">noldan yozilgan Android ilova</div></div>
+    <div class="box f" id="o-tests"><div class="big" style="font-size:44px">40+ <span style="font-family:Inter,Arial,sans-serif;font-weight:600;font-size:22px;letter-spacing:0">avtomatik test</span></div></div>
+    <div class="box f" id="o-live"><div class="h">Telefonimda ishlayapti</div><canvas id="pulse" style="width:100%;height:44px;display:block;margin-top:8px"></canvas><div class="sub">yurak urishi · kislorod · uyqu</div></div>
+    <div class="box f reveal" id="o-store"><div class="h">Keyingi qadam: Play Market</div></div>
+   </div>
+  </div>
+ </div></section>
+
+ <!-- 06 Astra-video (3,2) -->
+ <section class="panel" style="left:300vw;top:200vh"><div class="card">
+  <span class="mono lab">13:00 · Loyiha 3</span>
+  <h2 class="big txt f" id="v-title" style="font-size:clamp(46px,5.8vw,108px)">Astra-video <span class="it">— bitta buyruq, tayyor video</span></h2>
+  <div class="term f" id="v-cmd" style="margin-top:22px">$ astra-video "texnologiya yangiligi" <span style="color:var(--acc)">▍</span></div>
+  <div class="row" style="grid-template-columns:repeat(4,minmax(0,1fr));margin-top:18px">
+   <div class="box step f" id="v-s1"><div class="h">Matn</div><div class="sub">o'zi yozadi</div><div class="barx"><i></i></div></div>
+   <div class="box step f" id="v-s2"><div class="h">Ovoz</div><div class="sub">o'zi o'qiydi</div><div class="barx"><i></i></div></div>
+   <div class="box step f" id="v-s3"><div class="h">Animatsiya</div><div class="sub">o'zi chizadi</div><div class="barx"><i></i></div></div>
+   <div class="box step f" id="v-s4"><div class="h">Montaj</div><div class="sub">o'zi yig'adi</div><div class="barx"><i></i></div></div>
+  </div>
+  <div style="display:flex;gap:30px;align-items:baseline;margin-top:24px;flex-wrap:wrap">
+   <div class="big f reveal" id="v-human" style="font-size:clamp(30px,3.2vw,58px)">Inson <span class="it">aralashmaydi.</span></div>
+   <div class="mono f reveal" id="v-yt" style="font-size:15px">→ YouTube kanalim uchun videolar</div>
+  </div>
+ </div></section>
+
+ <!-- 07 Nimani o'rgandim (2,2) -->
+ <section class="panel" style="left:200vw;top:200vh"><div class="card">
+  <span class="mono lab">15:00 · Nimani o'rgandim</span>
+  <div class="f txt" id="r1" style="padding:4px 0 22px;border-bottom:1px solid var(--soft)">
+   <div class="mono" style="opacity:.6">01</div>
+   <div class="big" style="font-size:clamp(34px,4.3vw,80px);margin-top:6px">AI kod yozadi.<br><span class="it">Tizimni tushunish — insonning ishi.</span></div>
+   <div class="reveal f" id="r1py" style="font-size:22px;margin-top:12px">→ shuning uchun Python kursida o'qiyapman</div>
+  </div>
+  <div class="f txt" id="r2" style="padding-top:20px">
+   <div class="mono" style="opacity:.6">02</div>
+   <div class="big" style="font-size:clamp(34px,4.3vw,80px);margin-top:6px">Eng qiyini — g'oya emas.<br><span class="it">Oxirigacha yetkazish.</span></div>
+   <div class="reveal f" id="r2f" style="font-size:22px;margin-top:12px">→ hozirgi fokus: Orvell</div>
+  </div>
+ </div></section>
+
+ <!-- 08 Nega aynan men (1,2) -->
+ <section class="panel" style="left:100vw;top:200vh"><div class="card">
+  <span class="mono lab">16:30 · IT va AI sardori</span>
+  <h2 class="big txt f" id="w-q" style="font-size:clamp(50px,6.4vw,118px)">Nega <span class="it">aynan men?</span></h2>
+  <div class="row" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-top:26px">
+   <div class="box f" id="w1"><div class="big" style="font-size:34px">Gapirmayman — quraman.</div><div class="sub">siz ko'rgan tizimlar haqiqatda ishlayapti</div></div>
+   <div class="box f" id="w2"><div class="big" style="font-size:34px">AI bilan har kuni ishlayman.</div><div class="sub">uni to'g'ri va xavfsiz ishlatishni bilaman</div></div>
+   <div class="box f" id="w3"><div class="big" style="font-size:34px">Men ham o'quvchiman.</div><div class="sub">o'quvchilar tilida gapiraman, qayerdan boshlashni o'z tajribamdan ko'rsataman</div></div>
+   <div class="box f" id="w4"><div class="big" style="font-size:34px">Hammasi ochiq.</div><div class="sub">natijani har kim tekshira oladi</div></div>
+  </div>
+ </div></section>
+
+ <!-- 09 Maktab uchun reja (0,2) -->
+ <section class="panel" style="left:0;top:200vh"><div class="card">
+  <span class="mono lab">18:00 · Maktabimiz uchun</span>
+  <h2 class="big txt f" id="m-title" style="font-size:clamp(42px,5vw,92px)">Maktabimizda <span class="it">nimani o'zgartiraman.</span></h2>
+  <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 36px;margin-top:18px">
+   <ul class="plan">
+    <li class="f txt" id="p1"><span class="n">1</span><span>IT va AI klubi — haftada bir marta</span></li>
+    <li class="f txt" id="p2"><span class="n">2</span><span>Har o'quvchi — bitta tugallangan, real loyiha</span></li>
+    <li class="f txt" id="p3"><span class="n">3</span><span>Ustozlar uchun AI mashg'ulotlari: dars materiali va testlarni tezroq tayyorlash</span></li>
+   </ul>
+   <ul class="plan">
+    <li class="f txt" id="p4"><span class="n">4</span><span>Maktab uchun raqamli vositalar: e'lonlar uchun Telegram bot</span></li>
+    <li class="f txt" id="p5"><span class="n">5</span><span>AI'dan xavfsiz va halol foydalanish bo'yicha suhbatlar</span></li>
+    <li class="f txt" id="p6"><span class="n">6</span><span>Yil oxirida — maktab hakatoni</span></li>
+   </ul>
+  </div>
+  <div class="big f reveal" id="m-goal" style="font-size:clamp(30px,3.4vw,62px);margin-top:20px">Foydalanuvchi emas — <span class="it">yaratuvchi.</span></div>
+ </div></section>
+
+ <!-- 10 Kelajak (0,1) -->
+ <section class="panel" style="left:0;top:100vh"><div class="card">
+  <span class="mono lab">20:00 · Kelajak</span>
+  <div class="row" style="grid-template-columns:repeat(2,minmax(0,1fr));gap:22px">
+   <div class="box f" id="f-astra"><div class="big" style="font-size:clamp(44px,4.6vw,84px)">Astra</div><div class="sub" style="font-size:19px">bitta xotira bilan ishlaydigan shaxsiy AI yordamchi<br>telefon · kompyuter · uy</div></div>
+   <div class="box f" id="f-labs"><div class="big" style="font-size:clamp(44px,4.6vw,84px)">ASTRA Labs</div><div class="sub" style="font-size:19px">yosh ixtirochilar hamjamiyati<br>Hamjamiyat → Loyihalar → Mahsulotlar</div></div>
+  </div>
+  <div class="big f reveal" id="f-invite" style="font-size:clamp(40px,5vw,92px);margin-top:28px">Keling, <span class="it">birga ishlaylik.</span></div>
+ </div></section>
+
+ <!-- 11 Yakun (0,0) -->
+ <section class="panel" style="left:0;top:0"><div class="card clear" style="text-align:center">
+  <span class="mono lab">23:10 · Yakun</span>
+  <div class="it f" id="q-en" style="font-size:clamp(40px,5vw,94px);line-height:1.05">"The starlight you see today left long ago.<br>We build what arrives tomorrow."</div>
+  <div class="f reveal" id="q-uz" style="font-size:22px;margin-top:22px;opacity:.85">Bugun ko'rayotgan yulduz nuri ancha oldin yo'lga chiqqan. Biz esa ertaga yetib keladigan narsani quryapmiz.</div>
+  <div class="big f reveal" id="thanks" style="font-size:clamp(60px,8vw,150px);margin-top:26px">Rahmat<span class="it">.</span></div>
+ </div></section>
+
+ <!-- emblem in the middle of the map (2,1): seen in the final zoom-out -->
+ <section class="panel" style="left:200vw;top:100vh"><div style="text-align:center">
+  <svg viewBox="-60 -60 120 120" width="260" height="260" fill="none" stroke="var(--acc)" stroke-width="2"><path id="emb"/></svg>
+  <div class="big" style="font-size:90px;margin-top:10px">XASAN</div><div class="mono" style="margin-top:10px">Samarqand · 2026</div>
+ </div></section>
+
+</div></div>
+
+<script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
+<script src="speech.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+$('emb').setAttribute('d',Array.from({length:16},(_,k)=>{const a=k*Math.PI/8,r=k%2?30:56;return(k?'L':'M')+(Math.cos(a)*r).toFixed(1)+' '+(Math.sin(a)*r).toFixed(1)}).join(' ')+'Z');
+const N=SLIDES.length;
+// time-of-day palettes, one per slide (dawn → night): bg, ink, accent, tile line
+const PAL=[['#F2DCCB','#2B1E1A','#D9563A','#DDA987'],['#F4EEE6','#1C1A2B','#C2502F','#D2B8A8'],['#F4F1E8','#14202B','#1E5AA8','#B9C8D6'],['#EEF0EA','#0F2236','#2F6FB8','#C3CFD6'],['#F3E9D2','#0B1F4A','#1E5AA8','#E3B04B'],['#EFE0C2','#1E1A10','#0F7D78','#CFA45A'],['#EAD3AE','#2A1A0C','#B4541F','#C08A3A'],['#E7C79A','#2A1608','#9A3412','#B9803A'],['#5A2E3E','#FBEADF','#F3A15B','#8E5A6E'],['#2A1E48','#F1E9F5','#F0B24E','#5A4E8A'],['#070B1E','#F3E9D2','#F6C453','#2C3F78']];
+
+/* ---------- camera ---------- */
+let cam={x:1.5,y:1.5,z:1,tilt:0},anim=null,focus=null,cur=0,palF=0,palT=0,palK=1,mapMode=false,lite=false;
+const ease=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+const capOn=()=>document.body.classList.contains('cap');
+function goTo(k,instant){if(k<0||k>=N)return;const to=SLIDES[k].c,from={...cam},dist=Math.hypot(to[0]-from.x,to[1]-from.y);
+ const prev=mapMode?N-1:cur;focus=null;mapMode=false;cur=k;$('slideNo').textContent=String(k+1).padStart(2,'0')+' / '+N+' · '+SLIDES[k].name;
+ if(instant||dist>2.2){cam={x:to[0],y:to[1],z:1,tilt:0};anim=null;palF=palT=k;palK=1;applyPal();return}
+ anim={from,to:{x:to[0],y:to[1],z:1},t0:performance.now(),dur:dist>1.2?2100:1600,dip:lite?0:(dist>1.2?.35:.2),dir:lite?0:Math.sign((to[0]-from.x)||(from.y-to[1]))};
+ palF=prev;palT=k;palK=0;astraTo(null)}
+function showMap(){focus=null;mapMode=true;anim={from:{...cam},to:{...MAPVIEW},t0:performance.now(),dur:2600,dip:0,dir:0};astraTo(null);$('slideNo').textContent='Butun xarita'}
+const hx=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16));
+let lineCol=[221,169,135],accCol=[217,86,58],night=0,bgStr='#F2DCCB',tilesDirty=true;
+function applyPal(){const a=PAL[palF],b=PAL[palT],m=i=>hx(a[i]).map((v,j)=>Math.round(v+(hx(b[i])[j]-v)*palK));
+ const bg=m(0),ink=m(1),acc=m(2);lineCol=m(3);accCol=acc;const r=document.documentElement.style;bgStr=`rgb(${bg})`;
+ r.setProperty('--bg',bgStr);r.setProperty('--ink',`rgb(${ink})`);r.setProperty('--acc',`rgb(${acc})`);
+ r.setProperty('--card',`rgba(${bg},.92)`);r.setProperty('--soft',`rgba(${ink},.17)`);
+ const lum=(bg[0]*.3+bg[1]*.59+bg[2]*.11)/255;night=Math.max(0,Math.min(1,(.45-lum)/.3));tilesDirty=true}
+let frames=0,ft=0,lastNow=0;
+function frame(now){const vw=innerWidth,vh=innerHeight;
+ if(lastNow&&frames<120){ft+=now-lastNow;frames++;if(frames===120&&ft/120>30)lite=true}lastNow=now; // slow board -> lighter effects
+ if(anim){const t=Math.min(1,(now-anim.t0)/anim.dur),e=ease(t),s=Math.sin(t*Math.PI);
+  cam.x=anim.from.x+(anim.to.x-anim.from.x)*e;cam.y=anim.from.y+(anim.to.y-anim.from.y)*e;cam.z=(anim.from.z+(anim.to.z-anim.from.z)*e)*(1-s*anim.dip);cam.tilt=s*4*anim.dir;
+  if(!mapMode){palK=e;applyPal()}if(t>=1)anim=null}
+ else if(!mapMode){const tg=focus||{x:SLIDES[cur].c[0],y:SLIDES[cur].c[1],z:1};cam.x+=(tg.x-cam.x)*.07;cam.y+=(tg.y-cam.y)*.07;cam.z+=(tg.z-cam.z)*.07;cam.tilt*=.9}
+ $('world').style.transform=`translate(${vw/2}px,${vh*(capOn()?.42:.5)}px) rotate(${cam.tilt}deg) scale(${cam.z}) translate(${-cam.x*vw}px,${-cam.y*vh}px)`;
+ drawTiles(now);aimAstra();requestAnimationFrame(frame)}
+
+/* ---------- girih tiles: redrawn ~20 fps, ~8 fps on slow boards ---------- */
+const tc=$('tiles'),tx=tc.getContext('2d');let TW,TH,tt=0,lastTiles=0;const trs=()=>{TW=tc.width=innerWidth;TH=tc.height=innerHeight;tilesDirty=true};trs();addEventListener('resize',trs);
+const stars=Array.from({length:140},()=>[Math.random(),Math.random(),Math.random()*1.6+.5,Math.random()*6]);
+function star(cx,cy,r,a){tx.beginPath();for(let k=0;k<16;k++){const an=a+k*Math.PI/8,rr=k%2?r*.56:r;tx.lineTo(cx+Math.cos(an)*rr,cy+Math.sin(an)*rr)}tx.closePath()}
+function drawTiles(now){if(now-lastTiles<(lite?120:50)&&!tilesDirty)return;lastTiles=now;tilesDirty=false;tt+=lite?.006:.0025;
+ tx.fillStyle=bgStr;tx.fillRect(0,0,TW,TH);
+ if(night>0)stars.forEach(s=>{tx.fillStyle=`rgba(243,233,210,${night*(.35+.4*Math.sin(tt*20+s[3]))})`;tx.fillRect(s[0]*TW,s[1]*TH,s[2],s[2])});
+ const S=150,ox=((-cam.x*innerWidth*.22)%S+S)%S-S,oy=((-cam.y*innerHeight*.22)%S+S)%S-S;
+ tx.save();tx.translate(TW/2,TH/2);tx.rotate(cam.tilt*Math.PI/180*.6);const sc=.65+Math.min(1,cam.z)*.35;tx.scale(sc,sc);tx.translate(-TW/2,-TH/2);
+ tx.strokeStyle=`rgba(${lineCol},${.55-night*.25})`;tx.lineWidth=1.3;
+ for(let gy=-2;gy<TH/S/.65+3;gy++)for(let gx=-2;gx<TW/S/.65+3;gx++){const cx=gx*S+ox,cy=gy*S+oy;star(cx,cy,S*.5,tt*((gx+gy)%2?1:-1));tx.stroke();
+  if(!lite){const d=Math.hypot(cx-TW/2,cy-TH/2)/TW,ph=(Math.sin(tt*3-d*7)+1)/2;star(cx,cy,S*.28*(.75+ph*.4),-tt);tx.fillStyle=`rgba(${accCol},${.04+ph*.06})`;tx.fill()}}
+ tx.restore()}
+
+/* ---------- focus / enlarge ---------- */
+let astraEl=null;
+function trigger(tok,animate){tok.ids.forEach(id=>{const el=$(id);if(!el)return;
+  if(animate)document.querySelectorAll('.f.on').forEach(e=>e.classList.remove('on'));el.classList.add('lit');if(animate)el.classList.add('on');
+  document.querySelectorAll(`[data-when="${id}"]`).forEach(e=>e.classList.add('lit'));
+  if(animate){astraTo(el);if(tok.zoom){const w=worldPos(el),c=SLIDES[T.indexOf(tok)>=0?tok.slide:cur].c;focus={x:c[0]+(w.x-c[0])*.55,y:c[1]+(w.y-c[1])*.55,z:1.28}}}})}
+// element centre in map units, from layout (independent of where the camera currently is)
+function worldPos(el){let x=0,y=0,e=el;while(e&&e.id!=='world'){x+=e.offsetLeft;y+=e.offsetTop;e=e.offsetParent}
+ return{x:(x+el.offsetWidth/2)/innerWidth,y:(y+el.offsetHeight/2)/innerHeight}}
+function clearMarks(){document.querySelectorAll('.f,.wire,.arrow').forEach(e=>e.classList.remove('lit','on'))}
+function astraTo(el){astraEl=el;$('astra').style.opacity=el?1:0}
+let aimN=0;function aimAstra(){if(!astraEl||++aimN%6)return;const r=astraEl.getBoundingClientRect(),A=$('astra');
+ const x=Math.min(innerWidth-90,r.right-Math.min(40,r.width*.15)),y=Math.min(innerHeight*.8,r.top+r.height*.55);
+ if(Math.abs(parseFloat(A.style.left)-x)>4||Math.abs(parseFloat(A.style.top)-y)>4){A.style.left=x+'px';A.style.top=y+'px'}}
+
+/* ---------- state from the phone ---------- */
+let ptr=0,slideTimer=null,endTimer=null;
+function setPtr(n){n=Math.max(0,Math.min(T.length,n));if(n===ptr&&!mapMode)return;
+ if(sentOf(n)!==sentOf(ptr))focus=null; // zoom-in lasts one sentence
+ if(n>ptr&&n-ptr<40){for(let i=ptr;i<n;i++)trigger(T[i],true)}
+ else{clearMarks();for(let i=0;i<n;i++)trigger(T[i],false)}
+ ptr=n;
+ const want=ptr>=T.length?N-1:T[ptr].slide;clearTimeout(slideTimer);clearTimeout(endTimer);
+ if(want!==cur||mapMode){if(ptr===slideStart[want]&&want===cur+1&&!mapMode)slideTimer=setTimeout(()=>goTo(want),600);else goTo(want)}
+ if(ptr>=T.length)endTimer=setTimeout(showMap,3500);
+ renderCap()}
+function renderCap(){const i=Math.min(ptr,T.length-1),s=sentOf(i),a=sentStart[s],b=sentStart[s+1];let h='';
+ for(let j=a;j<b;j++)h+=`<span class="${j<ptr?'':j===ptr?'cur':'up'}">${T[j].d}</span> `;$('capNow').innerHTML=ptr>=T.length?'E\'tiboringiz uchun rahmat!':h}
+let lastQ=0,lastSeen=0;
+function onMsg(m){if(!m||typeof m.p!=='number'||!(m.q>lastQ))return;lastQ=m.q;lastSeen=Date.now();
+ document.body.classList.toggle('cap',!!m.cap);
+ if(m.map){showMap();return}setPtr(m.p)}
+setInterval(()=>{const on=Date.now()-lastSeen<25000;$('link').classList.toggle('on',on);$('linkT').textContent=on?'Pult ulangan':(Link.ok?'Pult kutilmoqda':'Internet kutilmoqda')},1000);
+
+/* ---------- local fallback keys on the board ---------- */
+addEventListener('keydown',e=>{const k=e.key,s=sentOf(ptr);
+ if(k==='ArrowRight'||k==='PageDown'||k===' '){e.preventDefault();setPtr(sentStart[s+1]??T.length)}
+ else if(k==='ArrowLeft'||k==='PageUp'){e.preventDefault();setPtr(ptr>sentStart[s]?sentStart[s]:sentStart[Math.max(0,s-1)])}
+ else if(k==='n'||k==='N'||k==='ArrowDown'){setPtr(slideStart[Math.min(N,cur+1)])}
+ else if(k==='ArrowUp'){setPtr(slideStart[Math.max(0,cur-1)])}
+ else if(k==='t'||k==='T'){document.body.classList.toggle('cap')}
+ else if(k==='f'||k==='F'){document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen().catch(()=>{})}
+ else if(k==='0'){showMap()}else if(k==='Home'){setPtr(0)}});
+addEventListener('dblclick',()=>{document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen().catch(()=>{})});
+
+/* ---------- decor (only runs on the Orvell slide) ---------- */
+const H='0123456789ABCDEF',rb=()=>H[Math.random()*16|0]+H[Math.random()*16|0],hexL=[];
+setInterval(()=>{if(cur!==4)return;const lab=['yurak','qadam','batareya','vaqt','uyqu','sinxron'][Math.random()*6|0];hexL.push(`<b>AB</b> ${Array.from({length:8},rb).join(' ')} <span style="opacity:.5">→ ${lab}</span>`);if(hexL.length>7)hexL.shift();$('hex').innerHTML=hexL.join('<br>')},450);
+const pc=$('pulse'),px=pc.getContext('2d');let pt=0;
+setInterval(()=>{if(cur!==4)return;pt+=.06;pc.width=pc.offsetWidth;pc.height=pc.offsetHeight;const w=pc.width,h=pc.height;px.strokeStyle=getComputedStyle(document.documentElement).getPropertyValue('--acc');px.lineWidth=2;px.beginPath();
+ for(let x=0;x<w;x+=2){const ph=(x/w*3+pt)%1,y=ph>.45&&ph<.5?h*.1:ph>.5&&ph<.55?h*.9:h*.55;x?px.lineTo(x,y):px.moveTo(x,y)}px.stroke()},50);
+
+applyPal();goTo(0,true);renderCap();requestAnimationFrame(frame);
+try{Link.start(onMsg,()=>{})}catch(e){}
+</script>
+</body></html>
