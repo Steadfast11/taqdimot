@@ -388,7 +388,7 @@ function legacyFinale(){const at=(ms,f)=>finT.push(setTimeout(f,ms));
 
 /* ---------- state from the phone ---------- */
 let ptr=0,slideTimer=null,endTimer=null;
-function setPtr(n){n=Math.max(0,Math.min(T.length,n));if(n===ptr&&!mapMode)return;
+function setPtr(n){n=Math.max(0,Math.min(T.length,n));if(n===ptr)return;   // repeats (the remote's heartbeat) must never restart anything
  if(sentOf(n)!==sentOf(ptr))focus=null; // zoom-in lasts one sentence
  if(n>ptr&&n-ptr<40){for(let i=ptr;i<n;i++)trigger(T[i],true)}
  else{clearMarks();for(let i=0;i<n;i++)trigger(T[i],false)}
@@ -402,7 +402,9 @@ function renderCap(){const i=Math.min(ptr,T.length-1),s=sentOf(i),a=sentStart[s]
 let lastQ=0,lastSeen=0;
 function onMsg(m){if(!m||typeof m.p!=='number'||!(m.q>lastQ))return;lastQ=m.q;lastSeen=Date.now();
  document.body.classList.toggle('cap',!!m.cap);
- if(m.map){resetFinale();showMap();return}setPtr(m.p)}
+ if(m.map){resetFinale();showMap();return}
+ if(m.p===ptr){if(mapMode&&!finT.length&&ptr<T.length)goTo(T[ptr].slide);return}   // same position: only leave a manual map view
+ setPtr(m.p)}
 setInterval(()=>{const on=Date.now()-lastSeen<25000;$('link').classList.toggle('on',on);$('linkT').textContent=on?'Pult ulangan':(Link.ok?'Pult kutilmoqda':'Internet kutilmoqda')},1000);
 
 /* ---------- local fallback keys on the board ---------- */
